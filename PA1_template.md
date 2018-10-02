@@ -1,0 +1,158 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+
+## Loading and preprocessing the data
+
+
+```r
+activity_df <- read.csv("activity.csv")
+activity_df$date <- as.Date(activity_df$date, format = "%Y-%m-%d")
+activity_df$weekday <- weekdays(activity_df$date, abbreviate = FALSE)
+head(activity_df)
+```
+
+```
+##   steps       date interval weekday
+## 1    NA 2012-10-01        0   lundi
+## 2    NA 2012-10-01        5   lundi
+## 3    NA 2012-10-01       10   lundi
+## 4    NA 2012-10-01       15   lundi
+## 5    NA 2012-10-01       20   lundi
+## 6    NA 2012-10-01       25   lundi
+```
+
+## What is mean total number of steps taken per day?
+
+```r
+stepsByDayTable <- aggregate(activity_df$steps, by= list(activity_df$date), FUN="sum", na.rm = TRUE)
+names(stepsByDayTable) <- c("date", "steps")
+hist(stepsByDayTable$steps, breaks = 10, 
+     col = "blue", border = "black", 
+     main = "Number of steps taken by day", xlab = "Steps")
+```
+
+![](PA1_template_files/figure-html/unnamed-chunk-2-1.png)<!-- -->
+
+Here we calculate the mean and median of the total number of steps taken by day :   
+
+
+```r
+meanStepsByDay <- mean(stepsByDayTable$steps)
+medianStepsByDay <- median(stepsByDayTable$steps)
+```
+
+The mean total number of steps taken per day is 9354.2295082 and the median total number of steps taken per day is 10395
+
+## What is the average daily activity pattern?
+
+
+```r
+averageStepsByIntervalTable <- aggregate(activity_df$steps, by=list(activity_df$interval), FUN=mean, na.rm=TRUE)
+names(averageStepsByIntervalTable) <- c("interval", "meanSteps")
+plot(averageStepsByIntervalTable$interval, 
+     averageStepsByIntervalTable$meanSteps, 
+     type = "l", col="orange", 
+     xlab="Interval", ylab="Average number of steps", main="Average number of steps by interval")
+```
+
+![](PA1_template_files/figure-html/unnamed-chunk-4-1.png)<!-- -->
+
+To find the interval that contains the max number of steps we use the which.max command
+
+```r
+averageStepsByIntervalTable[which.max(averageStepsByIntervalTable$mean), ]$interval
+```
+
+```
+## [1] 835
+```
+
+## Imputing missing values
+
+Here is the number of rows containing NA
+
+```r
+sum(is.na(activity_df$steps))
+```
+
+```
+## [1] 2304
+```
+
+We fill the missing values by averaging by interval
+
+
+```r
+stepsMissingValues <- averageStepsByIntervalTable$mean[match(activity_df$interval, averageStepsByIntervalTable$interval)]
+```
+
+We create anew dataset with the NA values filled.
+
+
+```r
+activityFilled_df <- activity_df
+activityFilled_df$steps <- ifelse(is.na(activity_df$steps), yes = stepsMissingValues, no = activity_df$steps)
+```
+
+We can see that there is NA values anymore :
+
+
+```r
+sum(is.na(activityFilled_df$steps))
+```
+
+```
+## [1] 0
+```
+
+We now plot again what we did at he beginning to see if there is a difference :
+
+```r
+stepsByDayFilledTable <- aggregate(activityFilled_df$steps, 
+                                   by= list(activityFilled_df$date), FUN="sum", na.rm = TRUE)
+names(stepsByDayFilledTable) <- c("date", "steps")
+hist(stepsByDayFilledTable$steps, breaks = 10, 
+     col = "blue", border = "black", 
+     main = "Number of steps taken by day", xlab = "Steps")
+```
+
+![](PA1_template_files/figure-html/unnamed-chunk-10-1.png)<!-- -->
+
+
+```r
+meanStepsByDayFilled <- mean(stepsByDayFilledTable$steps)
+medianStepsByDayFilled <- median(stepsByDayFilledTable$steps)
+```
+
+The mean total number of steps taken per day is 1.0766189\times 10^{4} and the median total number of steps taken per day is 1.0766189\times 10^{4}
+
+We notice as a difference that the spike a the 0 steps seems to have be redestributed changing a bit the repartition.
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+
+```r
+activity_df$dayType <- ifelse(activity_df$weekday %in% c("samedi", "dimanche"), 
+                              yes = "weekend", no = "weekday")
+activity_df$dayType <- as.factor(activity_df$dayType)
+```
+
+And here is the plot :
+
+
+```r
+library(ggplot2)
+activityByDayType <- aggregate(steps~interval + dayType, activity_df, mean, na.rm = TRUE)
+plot<- ggplot(activityByDayType, aes(x = interval , y = steps, color = dayType)) +
+       geom_line() +
+       labs(title = "Average daily steps by type of date", x = "Interval", y = "Average number of steps") +
+       facet_wrap(~dayType, ncol = 1, nrow=2)
+print(plot)
+```
+
+![](PA1_template_files/figure-html/unnamed-chunk-13-1.png)<!-- -->
